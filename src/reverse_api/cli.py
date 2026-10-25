@@ -1767,6 +1767,9 @@ def agent(
 
     Agent mode runs an integrated capture + reverse-engineering pipeline.
     """
+    if url:
+        url = normalize_url(url)
+
     if dry_run:
         # --dry-run is fundamentally about emitting machine-parseable validation
         # results, so it implies --json (and therefore --no-interactive).

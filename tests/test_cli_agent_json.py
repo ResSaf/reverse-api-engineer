@@ -732,8 +732,9 @@ def test_agent_bare_host_url_gets_https_scheme(tmp_path):
         patch("reverse_api.cli.session_manager", SessionManager(tmp_path / "history.json")),
         patch("reverse_api.auto_engineer.ClaudeAutoEngineer", return_value=engine) as engine_cls,
     ):
-        CliRunner().invoke(
+        result = CliRunner().invoke(
             main,
             ["agent", "-p", "fetch job postings", "-u", "jobs.ashbyhq.com/openai", "--headless", "-o", str(tmp_path), "--json"],
         )
     assert engine_cls.call_args.kwargs["start_url"] == "https://jobs.ashbyhq.com/openai"
+    assert json.loads(result.stdout.strip().splitlines()[-1])["url"] == "https://jobs.ashbyhq.com/openai"

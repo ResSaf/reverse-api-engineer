@@ -423,6 +423,23 @@ class TestAgentDryRun:
         assert payload["error_kind"] == "misuse"
         assert any(c["name"] == "url" and c["status"] == "error" for c in payload["checks"])
 
+    def test_dry_run_bare_host_gets_https_scheme(self, tmp_path):
+        """A bare host passes the url check, as it does on a real run."""
+        from reverse_api.cli import agent as agent_cmd
+
+        runner = CliRunner()
+        with patch("reverse_api.cli.config_manager") as cm:
+            cm.get.side_effect = lambda key, default=None: {
+                "agent_provider": "auto",
+                "sdk": "claude",
+                "output_dir": str(tmp_path),
+            }.get(key, default)
+            result = runner.invoke(agent_cmd, ["--dry-run", "-p", "x", "-u", "jobs.example.com/x"])
+
+        payload = json.loads(result.stdout.strip())
+        assert payload["url"] == "https://jobs.example.com/x"
+        assert any(c["name"] == "url" and c["status"] == "ok" for c in payload["checks"])
+
     def test_dry_run_unwritable_output_dir_is_config_invalid(self, tmp_path):
         """Unwritable output_dir → error_kind=config_invalid, not misuse."""
         from reverse_api.cli import agent as agent_cmd

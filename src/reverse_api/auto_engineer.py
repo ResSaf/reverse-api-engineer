@@ -56,6 +56,7 @@ class AutoPromptEngineer(Protocol):
     agent_provider: str
     mcp_run_id: str
     headless: bool
+    start_url: str | None
     prompt: str
     scripts_dir: Path
     har_path: Path
@@ -82,6 +83,7 @@ class ClaudeAutoEngineer(ClaudeEngineer):
         # `headless` is auto-engineer specific: for MCP providers it configures the MCP
         # server's browser launch; for `agent-browser` it only adjusts prompt wording.
         headless = kwargs.pop("headless", False)
+        start_url = kwargs.pop("start_url", None)
         har_dir = get_har_dir(run_id, output_dir)
         har_path = har_dir / "recording.har"
 
@@ -96,6 +98,7 @@ class ClaudeAutoEngineer(ClaudeEngineer):
         self.mcp_run_id = run_id
         self.agent_provider = agent_provider
         self.headless = headless
+        self.start_url = start_url
 
     def _build_auto_prompts(self: AutoPromptEngineer) -> tuple[str, str]:
         """Build (system_prompt, user_message) for auto mode.
@@ -136,6 +139,7 @@ class ClaudeAutoEngineer(ClaudeEngineer):
         template_kwargs = {
             "prompt": self.prompt,
             "scripts_dir": str(self.scripts_dir),
+            "start_url_block": "\n" + load("auto/start_url", start_url=self.start_url) if self.start_url else "",
         }
         if self.agent_provider != "chrome-mcp":
             template_kwargs["har_path"] = str(self.har_path)
@@ -346,6 +350,7 @@ class OpenCodeAutoEngineer(OpenCodeEngineer):
     def __init__(self, run_id: str, prompt: str, output_dir: str | None = None, agent_provider: str = "auto", **kwargs: Any) -> None:
         """Initialize OpenCode-backed agent engineer."""
         headless = kwargs.pop("headless", False)
+        start_url = kwargs.pop("start_url", None)
         har_dir = get_har_dir(run_id, output_dir)
         har_path = har_dir / "recording.har"
 
@@ -360,6 +365,7 @@ class OpenCodeAutoEngineer(OpenCodeEngineer):
         self.agent_provider = agent_provider
         self.mcp_name: str | None = None
         self.headless = headless
+        self.start_url = start_url
 
     def _get_active_prompts(self) -> tuple[str, str]:
         return ClaudeAutoEngineer._build_auto_prompts(self)
@@ -599,6 +605,7 @@ class CopilotAutoEngineer:
         from .copilot_engineer import CopilotEngineer
 
         headless = kwargs.pop("headless", False)
+        start_url = kwargs.pop("start_url", None)
         har_dir = get_har_dir(run_id, output_dir)
         har_path = har_dir / "recording.har"
 
@@ -613,6 +620,7 @@ class CopilotAutoEngineer:
         self.mcp_run_id = run_id
         self.agent_provider = agent_provider
         self.headless = headless
+        self.start_url = start_url
 
     def start_sync(self) -> None:
         self._engineer.start_sync()
@@ -637,6 +645,7 @@ class CopilotAutoEngineer:
         eng.agent_provider = self.agent_provider
         eng.mcp_run_id = self.mcp_run_id
         eng.headless = self.headless
+        eng.start_url = self.start_url
 
         if self.agent_provider == "agent-browser":
             ab_setup = ensure_agent_browser_runtime()

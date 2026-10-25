@@ -2165,6 +2165,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
         elif sdk == "copilot":
             from .auto_engineer import CopilotAutoEngineer
@@ -2180,6 +2181,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
         elif sdk == "cursor":
             from .cursor_engineer import CursorAutoEngineer
@@ -2196,6 +2198,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
                 cursor_model=model or config_manager.get("cursor_model", "composer-2.5"),
                 cursor_web_search=bool(config_manager.get("cursor_web_search", True)),
                 cursor_setting_sources=_cursor_src,
@@ -2214,6 +2217,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
 
         if json_event_sink is not None:

@@ -1,7 +1,7 @@
 <mission>
 {prompt}
 </mission>
-
+{start_url_block}
 <output_directory>
 {scripts_dir}
 </output_directory>

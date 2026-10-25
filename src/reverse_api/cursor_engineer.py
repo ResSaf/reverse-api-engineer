@@ -491,6 +491,7 @@ class CursorAutoEngineer(CursorEngineer):
         **kwargs: Any,
     ) -> None:
         headless = kwargs.pop("headless", False)
+        start_url = kwargs.pop("start_url", None)
         from .utils import get_har_dir
 
         har_dir = get_har_dir(run_id, output_dir)
@@ -506,6 +507,7 @@ class CursorAutoEngineer(CursorEngineer):
         self.mcp_run_id = run_id
         self.agent_provider = agent_provider
         self.headless = headless
+        self.start_url = start_url
 
     def _cursor_mcp_servers(self) -> dict[str, Any]:
         if self.agent_provider == "agent-browser":

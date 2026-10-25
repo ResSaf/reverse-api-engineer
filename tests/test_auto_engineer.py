@@ -312,6 +312,55 @@ class TestAgentBrowserPrompt:
                             assert "npx" in user_p
 
 
+class TestStartUrlPrompt:
+    """The agent --url value reaches the user message."""
+
+    URL = "https://jobs.ashbyhq.com/openai"
+
+    def _user_prompt(self, tmp_path, agent_provider, **kwargs):
+        with patch("reverse_api.auto_engineer.get_har_dir", return_value=tmp_path / "har"):
+            with patch("reverse_api.base_engineer.get_scripts_dir", return_value=tmp_path / "scripts"):
+                with patch("reverse_api.base_engineer.MessageStore"):
+                    with patch("reverse_api.agent_browser.agent_browser_npx_package", return_value="agent-browser@test"):
+                        eng = ClaudeAutoEngineer(
+                            run_id="test123",
+                            prompt="fetch all open job postings",
+                            model="claude-sonnet-4-6",
+                            output_dir=str(tmp_path),
+                            agent_provider=agent_provider,
+                            **kwargs,
+                        )
+                        return eng._build_auto_prompts()[1]
+
+    @pytest.mark.parametrize("agent_provider", ["auto", "chrome-mcp", "agent-browser"])
+    def test_start_url_follows_mission(self, tmp_path, agent_provider):
+        user_p = self._user_prompt(tmp_path, agent_provider, start_url=self.URL)
+        assert f"<start_url>\n{self.URL}\n</start_url>" in user_p
+        assert user_p.index("</mission>") < user_p.index("<start_url>") < user_p.index("<output_directory>")
+
+    @pytest.mark.parametrize("agent_provider", ["auto", "chrome-mcp", "agent-browser"])
+    def test_no_start_url_block_without_url(self, tmp_path, agent_provider):
+        user_p = self._user_prompt(tmp_path, agent_provider)
+        assert "<start_url>" not in user_p
+        assert "</mission>\n\n<output_directory>" in user_p
+
+    def test_opencode_renders_start_url(self, tmp_path):
+        with patch("reverse_api.auto_engineer.get_har_dir", return_value=tmp_path / "har"):
+            with patch("reverse_api.base_engineer.get_scripts_dir", return_value=tmp_path / "scripts"):
+                with patch("reverse_api.base_engineer.MessageStore"):
+                    with patch("reverse_api.opencode_engineer.OpenCodeUI"):
+                        eng = OpenCodeAutoEngineer(
+                            run_id="test123",
+                            prompt="fetch all open job postings",
+                            output_dir=str(tmp_path),
+                            opencode_provider="anthropic",
+                            opencode_model="claude-opus-4-6",
+                            start_url=self.URL,
+                        )
+                        _sys_p, user_p = eng._get_active_prompts()
+                        assert f"<start_url>\n{self.URL}\n</start_url>" in user_p
+
+
 class TestChromeMcpConfig:
     """Test MCP configuration selection."""
 

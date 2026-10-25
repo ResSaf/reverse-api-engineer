@@ -716,3 +716,24 @@ def test_agent_url_reaches_engine(tmp_path, sdk, engine_path):
             ["agent", "-p", "fetch job postings", "-u", "https://jobs.ashbyhq.com/openai", "--headless", "-o", str(tmp_path), "--json"],
         )
     assert engine_cls.call_args.kwargs["start_url"] == "https://jobs.ashbyhq.com/openai"
+
+
+def test_agent_bare_host_url_gets_https_scheme(tmp_path):
+    from unittest.mock import AsyncMock
+
+    from reverse_api.config import ConfigManager
+
+    config = ConfigManager(tmp_path / "config.json")
+    config.config.update({"sdk": "claude", "agent_provider": "auto", "real_time_sync": False})
+    engine = MagicMock()
+    engine.analyze_and_generate = AsyncMock(return_value=None)
+    with (
+        patch("reverse_api.cli.config_manager", config),
+        patch("reverse_api.cli.session_manager", SessionManager(tmp_path / "history.json")),
+        patch("reverse_api.auto_engineer.ClaudeAutoEngineer", return_value=engine) as engine_cls,
+    ):
+        CliRunner().invoke(
+            main,
+            ["agent", "-p", "fetch job postings", "-u", "jobs.ashbyhq.com/openai", "--headless", "-o", str(tmp_path), "--json"],
+        )
+    assert engine_cls.call_args.kwargs["start_url"] == "https://jobs.ashbyhq.com/openai"

@@ -52,6 +52,7 @@ from .utils import (
     get_history_path,
     get_messages_path,
     get_timestamp,
+    normalize_url,
     resolve_run,
 )
 
@@ -2083,6 +2084,9 @@ def run_auto_capture(
         prompt = options["prompt"]
         url = options.get("url")
         model = options["model"]
+
+    if url:
+        url = normalize_url(url)
 
     if agent_provider == "chrome-mcp" and not headless:
         console.print()

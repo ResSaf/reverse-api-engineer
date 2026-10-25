@@ -15,7 +15,7 @@ from playwright_stealth import Stealth
 from rich.console import Console
 from rich.status import Status
 
-from .utils import get_har_dir, get_timestamp
+from .utils import get_har_dir, get_timestamp, normalize_url
 
 console = Console()
 
@@ -233,15 +233,6 @@ class ManualBrowser:
         """Inject stealth scripts into page before any other scripts run."""
         page.add_init_script(STEALTH_JS)
 
-    @staticmethod
-    def _normalize_url(url: str) -> str:
-        """Prepend https:// when the user typed a bare host (e.g.
-        ``jobs.example.com/x``); Playwright's goto rejects scheme-less URLs."""
-        url = url.strip()
-        if url and "://" not in url:
-            return "https://" + url
-        return url
-
     def _abort_playwright(self) -> None:
         """Quietly tear down the browser/Playwright after a failed start.
 
@@ -440,7 +431,7 @@ class ManualBrowser:
         console.print()
 
         if start_url:
-            start_url = self._normalize_url(start_url)
+            start_url = normalize_url(start_url)
 
         self._playwright = sync_playwright().start()
 

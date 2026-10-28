@@ -941,18 +941,12 @@ class TestSubcommands:
             runner("add pagination", None)
         later.assert_called_once_with("add pagination", None, "/out")
 
-    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_capture(self, monkeypatch, tmp_path):
+    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_capture(self, monkeypatch):
         from reverse_api import cli
 
-        captured = tmp_path / "har" / "capture1"
-        captured.mkdir(parents=True)
-        (captured / "recording.har").write_text("{}", encoding="utf-8")
         history = MagicMock()
         history.get_run.side_effect = lambda text: {"run_id": text} if text == "abc123" else None
-        history.get_history.return_value = [
-            {"run_id": "collect1", "paths": {"har_dir": str(tmp_path / "har" / "collect1")}},
-            {"run_id": "capture1", "paths": {"har_dir": str(captured)}},
-        ]
+        history.get_history.return_value = [{"run_id": "collect1", "mode": "collector"}, {"run_id": "capture1", "mode": "agent"}]
         monkeypatch.setattr(cli, "session_manager", history)
         with patch.object(cli, "run_engineer") as engineer:
             cli.engineer_from_prompt("abc123", "m", "/out")

@@ -16,6 +16,7 @@ from claude_agent_sdk import (
 )
 
 from reverse_api.auto_engineer import ClaudeAutoEngineer, OpenCodeAutoEngineer
+from reverse_api.chrome_mcp import CHROME_DEVTOOLS_MCP_PACKAGE
 
 
 @dataclass
@@ -220,7 +221,8 @@ class TestChromeMcpPrompt:
         """Chrome MCP prompt mentions real Chrome browser."""
         eng = self._make_engineer(tmp_path)
         sys_p, user_p = eng._build_auto_prompts()
-        assert "REAL Chrome browser" in user_p
+        assert "REAL Chrome" in user_p
+        assert "`new_page`" in user_p and "pageId" in user_p
         assert "existing sessions" in user_p
 
     def test_chrome_mcp_prompt_python(self, tmp_path):
@@ -333,7 +335,7 @@ class TestChromeMcpConfig:
         eng = self._make_engineer(tmp_path, agent_provider="chrome-mcp")
         name, config = eng._get_mcp_config()
         assert name == "chrome-devtools"
-        assert "chrome-devtools-mcp@latest" in config["args"]
+        assert CHROME_DEVTOOLS_MCP_PACKAGE in config["args"]
         assert "--autoConnect" in config["args"]
 
     def test_auto_mcp_config(self, tmp_path):
@@ -376,7 +378,7 @@ class TestOpenCodeChromeMcpConfig:
         eng = self._make_engineer(tmp_path, agent_provider="chrome-mcp")
         config = eng._get_opencode_mcp_config()
         assert "chrome-devtools" in eng.mcp_name
-        assert "chrome-devtools-mcp@latest" in config["config"]["command"]
+        assert CHROME_DEVTOOLS_MCP_PACKAGE in config["config"]["command"]
 
     def test_opencode_auto_mcp_config(self, tmp_path):
         """OpenCode auto config uses rae-playwright-mcp."""
@@ -424,6 +426,24 @@ class TestClaudeAutoEngineerAnalyze:
                     eng.scripts_dir = tmp_path / "scripts"
                     eng.scripts_dir.mkdir(parents=True, exist_ok=True)
                     return eng
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("provider", ["auto", "chrome-mcp", "agent-browser"])
+    async def test_sessions_ignore_user_mcp_servers(self, tmp_path, provider):
+        """Every provider builds an isolated session: only rae's MCP servers, large message buffer."""
+        from reverse_api.utils import SDK_MAX_BUFFER_SIZE
+
+        eng = self._make_engineer(tmp_path, agent_provider=provider)
+        with patch("reverse_api.auto_engineer.ensure_agent_browser_runtime", MagicMock()), \
+             patch("reverse_api.auto_engineer.print_agent_browser_setup_notices", MagicMock()), \
+             patch("reverse_api.auto_engineer.ClaudeSDKClient") as mock_sdk:
+            mock_sdk.return_value.__aenter__ = AsyncMock(side_effect=Exception("stop"))
+            mock_sdk.return_value.__aexit__ = AsyncMock(return_value=False)
+            await eng.analyze_and_generate()
+
+        options = mock_sdk.call_args.kwargs["options"]
+        assert options.strict_mcp_config is True
+        assert options.max_buffer_size == SDK_MAX_BUFFER_SIZE
 
     @pytest.mark.asyncio
     async def test_exception_generic(self, tmp_path):

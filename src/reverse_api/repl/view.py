@@ -689,9 +689,10 @@ class LedgerView:
             hint = [(f"fg:{DIM}", "type a follow-up · /new starts over" + (" · ⌃o expand " if st.folded else " "))]
         else:
             hint = [(f"fg:{DIM}", "/ commands" + (" · ⌃o expand " if st.folded else " "))]
-        if st.run_id:
-            hint += [(f"fg:{DIM}", f"· run {st.run_id} ")]
         used = sum(len(t) for _, t in left) + sum(len(t) for _, t in hint)
+        run = f"· run {st.run_id} " if st.run_id else ""
+        if run and used + 1 + len(run) <= width():  # left out rather than cut off
+            hint, used = hint + [(f"fg:{DIM}", run)], used + len(run)
         return FormattedText(left + [("", " " * max(1, width() - used))] + hint)
 
     def menu(self, rows: list[tuple[str, str, bool, bool]], title: str | None = None, limit: int = MENU_ROWS) -> FormattedText:

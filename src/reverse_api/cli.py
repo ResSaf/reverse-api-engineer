@@ -1927,10 +1927,16 @@ def engineer_from_prompt(text: str, model: str | None = None, output_dir: str | 
     """A prompt in engineer mode: a known run id re-engineers that run; anything else is an instruction for the latest run."""
     if session_manager.get_run(text):
         return run_engineer(text, model=model, output_dir=output_dir)
-    latest = session_manager.get_history(limit=1)
-    if not latest:
-        raise RuntimeError("no runs yet · start one in agent or manual mode")
-    return run_engineer(latest[0]["run_id"], model=model, output_dir=output_dir, additional_instructions=text)
+    # Collector runs capture no traffic, so the latest run with a HAR.
+    latest = next((r for r in session_manager.get_history(limit=50) if _har_path(r["run_id"], r).exists()), None)
+    if latest is None:
+        raise RuntimeError("no captured runs yet · start one in agent or manual mode")
+    return run_engineer(latest["run_id"], model=model, output_dir=output_dir, additional_instructions=text)
+
+
+def _har_path(run_id: str, run: dict[str, Any]) -> Path:
+    """Where a run in history keeps its captured traffic."""
+    return Path((run.get("paths") or {}).get("har_dir") or get_har_dir(run_id, None)) / "recording.har"
 
 
 def run_engineer(
@@ -1962,10 +1968,7 @@ def run_engineer(
         else:
             if not prompt:
                 prompt = run_data["prompt"]
-            # Detect where it was saved
-            paths = run_data.get("paths", {})
-            har_dir = Path(paths.get("har_dir", get_har_dir(run_id, None)))
-            har_path = har_dir / "recording.har"
+            har_path = _har_path(run_id, run_data)
 
     sdk = _session_sdk(resume) or config_manager.get("sdk", "claude")
     enable_sync = config_manager.get("real_time_sync", True)

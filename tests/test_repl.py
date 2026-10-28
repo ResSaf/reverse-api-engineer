@@ -149,6 +149,14 @@ class TestLedgerUI:
         LedgerUI(b).header("abc123", "prompt", model="claude-sonnet-5-5")
         assert "run abc123" in "".join(text for _, text in view.status())
 
+    def test_a_run_id_that_does_not_fit_is_left_out(self, session, monkeypatch):
+        from reverse_api.repl import view as view_module
+
+        _st, _t, view, b = session
+        LedgerUI(b).header("abc123", "prompt", model="claude-sonnet-5-5")
+        monkeypatch.setattr(view_module, "width", lambda: 40)
+        assert "run abc123" not in "".join(text for _, text in view.status())
+
     def test_folded_output_offers_ctrl_o(self, session):
         st, _t, view, b = session
         assert "expand" not in "".join(text for _, text in view.status())
@@ -933,20 +941,26 @@ class TestSubcommands:
             runner("add pagination", None)
         later.assert_called_once_with("add pagination", None, "/out")
 
-    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_run(self, monkeypatch):
+    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_capture(self, monkeypatch, tmp_path):
         from reverse_api import cli
 
+        captured = tmp_path / "har" / "capture1"
+        captured.mkdir(parents=True)
+        (captured / "recording.har").write_text("{}", encoding="utf-8")
         history = MagicMock()
         history.get_run.side_effect = lambda text: {"run_id": text} if text == "abc123" else None
-        history.get_history.return_value = [{"run_id": "latest1"}]
+        history.get_history.return_value = [
+            {"run_id": "collect1", "paths": {"har_dir": str(tmp_path / "har" / "collect1")}},
+            {"run_id": "capture1", "paths": {"har_dir": str(captured)}},
+        ]
         monkeypatch.setattr(cli, "session_manager", history)
         with patch.object(cli, "run_engineer") as engineer:
             cli.engineer_from_prompt("abc123", "m", "/out")
             cli.engineer_from_prompt("add pagination", "m", "/out")
         assert engineer.call_args_list[0] == call("abc123", model="m", output_dir="/out")
-        assert engineer.call_args_list[1] == call("latest1", model="m", output_dir="/out", additional_instructions="add pagination")
-        history.get_history.return_value = []
-        with pytest.raises(RuntimeError, match="no runs yet"):
+        assert engineer.call_args_list[1] == call("capture1", model="m", output_dir="/out", additional_instructions="add pagination")
+        history.get_history.return_value = history.get_history.return_value[:1]
+        with pytest.raises(RuntimeError, match="no captured runs yet"):
             cli.engineer_from_prompt("add pagination")
 
     def test_without_a_terminal_a_prompt_is_required(self, monkeypatch):

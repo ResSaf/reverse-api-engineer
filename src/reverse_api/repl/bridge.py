@@ -104,6 +104,7 @@ class Bridge:
         self.pending_card: Path | None = None
         self.cost_base = 0.0
         self.verified = False  # the agent called report_client_verified in this run
+        self.workspace: tuple[Path, Path | None] | None = None  # the run's folder and its synced copy
 
     def ui(self) -> LedgerUI:
         return LedgerUI(self)
@@ -203,7 +204,7 @@ class LedgerUI:
         st.run_id, st.step, st.tokens = run_id, 0, 0
         st.running, st.waiting, st.verb, st.kind = True, False, "starting", "other"
         self.b.cost_base = st.cost
-        self.b.verified = False
+        self.b.verified, self.b.workspace = False, None
         # The run's own model and SDK; the selection in st.model stays for the next run.
         st.run_model, st.run_sdk = model or st.model, sdk or st.sdk
         claude = st.run_sdk == "claude" and not predates_effort(st.run_model)
@@ -250,6 +251,8 @@ class LedgerUI:
         if name in HIDDEN_TOOLS:
             return
         if name == "report_client_verified" and not is_error:
+            if not self.b.verified and self.b.workspace:
+                self.view.workspace(*self.b.workspace)
             self.b.verified = True  # the card promises a client that ran, so only a confirmed report counts
         text = str(output or "").strip()
         lines = text.splitlines()
@@ -304,6 +307,9 @@ class LedgerUI:
     def progress(self, message: str) -> None:
         self.view.notice(message)
         self._changed()
+
+    def workspace(self, folder: Path, copy: Path | None) -> None:
+        self.b.workspace = (folder.resolve(), copy.resolve() if copy else None)
 
     def success(self, script_path: str, local_path: str | None = None) -> None:
         _ = local_path

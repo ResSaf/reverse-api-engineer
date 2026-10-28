@@ -910,6 +910,17 @@ class TestReportClientVerifiedTool:
         assert client_executed[0]["script_path"] == str(eng.scripts_dir / "api_client.py")
 
     @pytest.mark.asyncio
+    async def test_tool_tells_the_session_where_the_files_are_once(self, tmp_path):
+        eng = self._make_engineer(tmp_path, output_language="python")
+        eng._report_workspace = MagicMock()
+
+        tool = eng._build_verification_tool()
+        await tool.handler({"summary": "first confirmation"})
+        await tool.handler({"summary": "second confirmation"})
+
+        eng._report_workspace.assert_called_once_with()
+
+    @pytest.mark.asyncio
     async def test_tool_second_call_in_same_session_does_not_re_emit(self, tmp_path):
         """The tool's own description tells the agent to call it exactly
         once, but that's prompt text, not enforced — flagged by automated

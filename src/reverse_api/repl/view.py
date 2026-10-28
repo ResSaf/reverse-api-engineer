@@ -482,6 +482,12 @@ class LedgerView:
         # The full copy is only styled if ctrl+o asks for it: tool output can run to thousands of lines.
         self.out(block(lines[:OUTPUT_PREVIEW], more, cut=True), Deferred(lambda: block(lines, 0, cut=False)))
 
+    def workspace(self, folder: Path, copy: Path | None) -> None:
+        """Where a verified client's files are, absolute so a click opens them."""
+        rows = [("in", folder), ("copy", copy)] if copy else [("in", folder)]
+        for label, path in rows:
+            self.out(f"{' ' * INDENT}[{HAIRLINE}]└[/] [{DIM}]{label}[/] [{INK_SOFT}]{link(str(path), path)}[/]")
+
     def code(self, source: str, language: str) -> None:
         """Written code, previewed from its first definition; ctrl+o shows all of it."""
         total = source.count("\n") + 1
@@ -683,6 +689,8 @@ class LedgerView:
             hint = [(f"fg:{DIM}", "type a follow-up · /new starts over" + (" · ⌃o expand " if st.folded else " "))]
         else:
             hint = [(f"fg:{DIM}", "/ commands" + (" · ⌃o expand " if st.folded else " "))]
+        if st.run_id:
+            hint += [(f"fg:{DIM}", f"· run {st.run_id} ")]
         used = sum(len(t) for _, t in left) + sum(len(t) for _, t in hint)
         return FormattedText(left + [("", " " * max(1, width() - used))] + hint)
 

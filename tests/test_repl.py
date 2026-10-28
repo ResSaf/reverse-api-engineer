@@ -120,6 +120,35 @@ class TestLedgerUI:
         ui.usage({"input_tokens": 10, "output_tokens": 5, "estimated_cost_usd": 0.01})
         assert "ready" not in plain(t), "a client path that does not exist gets no card"
 
+    def test_verified_shows_where_the_files_are(self, session):
+        _st, t, _view, b = session
+        ui = LedgerUI(b)
+        ui.header("abc123", "prompt", model="claude-sonnet-5-5")
+        folder, copy = Path("/runs/abc123"), Path("/work/scripts/jobs")
+        ui.workspace(folder, copy)
+        for _ in range(2):
+            ui.tool_start("mcp__verification__report_client_verified", {"summary": "ok"})
+            ui.tool_result("mcp__verification__report_client_verified", output="Recorded")
+        text = plain(t)
+        assert text.count(f"└ in {folder.resolve()}") == 1 and text.count(f"└ copy {copy.resolve()}") == 1
+
+    def test_no_folders_without_a_confirmed_verification(self, session, tmp_path):
+        _st, t, _view, b = session
+        ui = LedgerUI(b)
+        ui.header("abc123", "prompt", model="claude-sonnet-5-5")
+        ui.workspace(tmp_path / "runs" / "abc123", None)
+        ui.tool_result("mcp__verification__report_client_verified", is_error=True, output="failed")
+        assert "└ in" not in plain(t)
+        ui.header("def456", "prompt", model="claude-sonnet-5-5")
+        ui.tool_result("mcp__verification__report_client_verified", output="Recorded")
+        assert "└ in" not in plain(t), "a new run forgets the last run's folder"
+
+    def test_the_status_row_shows_the_run_id(self, session):
+        _st, _t, view, b = session
+        assert "run " not in "".join(text for _, text in view.status())
+        LedgerUI(b).header("abc123", "prompt", model="claude-sonnet-5-5")
+        assert "run abc123" in "".join(text for _, text in view.status())
+
     def test_folded_output_offers_ctrl_o(self, session):
         st, _t, view, b = session
         assert "expand" not in "".join(text for _, text in view.status())
@@ -449,6 +478,12 @@ class TestCommands:
         assert "/history" not in plain(session.transcript)
         pick(session.st, "abc123")
         assert "› /history abc123" in plain(session.transcript)
+
+    def test_clear_forgets_the_run_id(self, app_session):
+        session, _history = app_session
+        session.st.run_id = "abc123"
+        session.run_command("/clear")
+        assert session.st.run_id is None
 
     def test_clear_starts_over_with_no_usage(self, app_session):
         session, _history = app_session

@@ -97,6 +97,13 @@ class BaseEngineer(ABC):
         if isinstance(self.ui, LedgerUI):
             self.ui.usage(self.usage_metadata)
 
+    def _report_workspace(self) -> None:
+        """Tells the full-screen session where the run's files are, for its verified step."""
+        from .repl.bridge import LedgerUI
+
+        if isinstance(self.ui, LedgerUI):
+            self.ui.workspace(self.scripts_dir, self.local_scripts_dir)
+
     async def _opening_message(self, brief: str) -> str | None:
         """The first message of the run: its brief, or when resuming, the user's next message."""
         message = await self._prompt_follow_up() if self.resume_session else brief

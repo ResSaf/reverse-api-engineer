@@ -335,7 +335,7 @@ class Session:
                 view.flush_live()
                 self.transcript.clear()
                 st.scroll, st.folded, st.cost, st.tokens, st.step = 0, False, 0.0, 0, 0
-                st.last_client, st.client_name, st.host = None, "", ""
+                st.last_client, st.client_name, st.host, st.run_id = None, "", "", None
                 self.bridge.cost_base = 0.0
         elif cmd == "/settings":
             self.classic(lambda: self.cli.handle_settings(), then=self.reload_settings, pause=False)

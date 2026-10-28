@@ -23,11 +23,27 @@ English; providers such as Playwright MCP or Chrome DevTools MCP route browser a
 
 ```bash
 reverse-api-engineer
-# the REPL starts in agent mode
-> click on the first job listing
+# the session starts in agent mode
+> all open jobs on jobs.ashbyhq.com/openai
 ```
 
+Or start from the subcommand: in a terminal, `agent` opens the same session
+and starts the run right away, with its options kept for the prompts you type
+next.
+
+```bash
+reverse-api-engineer agent --prompt "all open jobs on jobs.ashbyhq.com/openai" --headless
+```
+
+The agent's steps, messages and reasoning stream into the conversation. Type a
+follow-up when it finishes, answer its questions in the input bar, and press
+`Esc` to stop it. `/resume` picks a past run back up where it stopped.
+
 ## Running non-interactively
+
+With `--json`, `--json-stream` or `--no-interactive`, `agent` never opens the
+session: it prints plain output and exits, which is what scripts and other
+agents want.
 
 ```bash
 reverse-api-engineer agent \

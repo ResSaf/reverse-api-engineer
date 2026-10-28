@@ -1,4 +1,4 @@
 {
   "title": "CLI reference",
-  "pages": ["commands", "scripted-usage"]
+  "pages": ["commands", "scripted-usage", "coding-agents"]
 }

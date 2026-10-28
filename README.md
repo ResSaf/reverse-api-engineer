@@ -169,7 +169,7 @@ Pass `--no-interactive` (and/or `--json`) to skip prompts. With `--json`, stdout
 | `url`            | `string` \| `null`  |                                                                        |
 | `mode`           | `string` \| `null`  | `"auto"`, `"chrome-mcp"`, or `"agent-browser"`.                                        |
 | `har_path`       | `string` \| `null`  | Captured HAR.                                                          |
-| `script_path`    | `string` \| `null`  | Generated client.                                                      |
+| `script_path`    | `string` \| `null`  | Generated client; exists whenever `status` is `"ok"`.                 |
 | `usage`          | `object`            | `{input_tokens, output_tokens, total_cost}`.                           |
 | `error`          | `string` \| `null`  | When `status == "error"`.                                              |
 

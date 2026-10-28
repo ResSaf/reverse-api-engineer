@@ -215,7 +215,9 @@ class Session:
 
     def palette_items(self) -> list[tuple[str, str]]:
         typed = self.buf.text.strip().lower()
-        return sorted(((c, d) for c, d in COMMANDS.items() if c.startswith(typed)), key=lambda item: item[0] != typed)
+        aliased = {target for alias, target in ALIASES.items() if alias.startswith(typed)}
+        items = [(c, d) for c, d in COMMANDS.items() if c.startswith(typed) or c in aliased]
+        return sorted(items, key=lambda item: item[0] != ALIASES.get(typed, typed))
 
     def choose(self) -> None:
         """Enter on an open picker: its highlighted item, or for an agent's question, whatever was typed meanwhile."""
@@ -498,7 +500,7 @@ class Session:
         elif mode == "collector":
             run = lambda: cli.run_collector(prompt=prompt, model=model)  # noqa: E731
         elif mode == "engineer":
-            run = lambda: self.engineer(prompt, model)  # noqa: E731
+            run = lambda: cli.engineer_from_prompt(prompt, model)  # noqa: E731
         else:
             run = lambda: cli.run_agent_capture(prompt=prompt, model=model)  # noqa: E731
         self.launch(prompt, run, mode, echo)
@@ -533,17 +535,6 @@ class Session:
                     self.invalidate()
 
             threading.Thread(target=check, name="rae-update-check", daemon=True).start()
-
-    def engineer(self, text: str, model: str | None) -> dict[str, Any] | None:
-        """A known run id re-engineers that run; anything else is an instruction for the latest run."""
-        sm = self.cli.session_manager
-        if sm.get_run(text):
-            return self.cli.run_engineer(text, model=model)
-        latest = sm.get_history(limit=1)
-        if not latest:
-            self.view.error("no runs yet · start one in agent or manual mode")
-            return None
-        return self.cli.run_engineer(latest[0]["run_id"], model=model, additional_instructions=text)
 
     def work(self, fn: Callable[[], Any]) -> None:
         """Run an engine in a worker thread; its UI calls stream into the conversation through the bridge."""

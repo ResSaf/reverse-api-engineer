@@ -5,7 +5,7 @@ import io
 import threading
 from concurrent.futures import Future
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from rich.console import Console
@@ -425,6 +425,13 @@ class TestCommands:
         assert quits == [True]
         session.run_command("/commands")
         assert "› /help" in plain(session.transcript) and "unknown command" not in plain(session.transcript)
+
+    def test_the_menu_finds_commands_by_alias(self, app_session):
+        session, _history = app_session
+        session.buf.text = "/qu"
+        assert [c for c, _ in session.palette_items()] == ["/exit"]
+        session.buf.text = "/c"
+        assert {c for c, _ in session.palette_items()} == {"/clear", "/help"}
 
     def test_an_exact_command_wins_over_longer_ones(self, app_session):
         session, _history = app_session
@@ -878,6 +885,34 @@ class TestSubcommands:
             "headless": True,
         }
         assert capture.call_args_list[1].kwargs == {"prompt": "later task", "model": "claude-opus-5-5", "output_dir": None, "headless": True}
+
+    def test_engineer_keeps_its_output_dir_for_later_prompts(self, monkeypatch):
+        from click.testing import CliRunner
+
+        from reverse_api import cli
+
+        monkeypatch.setattr(cli, "_in_terminal", lambda: True)
+        with patch.object(cli, "open_session") as session, patch.object(cli, "engineer_from_prompt") as later:
+            CliRunner().invoke(cli.main, ["engineer", "abc123", "-o", "/out"])
+            runner = session.call_args.args[4]
+            runner("add pagination", None)
+        later.assert_called_once_with("add pagination", None, "/out")
+
+    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_run(self, monkeypatch):
+        from reverse_api import cli
+
+        history = MagicMock()
+        history.get_run.side_effect = lambda text: {"run_id": text} if text == "abc123" else None
+        history.get_history.return_value = [{"run_id": "latest1"}]
+        monkeypatch.setattr(cli, "session_manager", history)
+        with patch.object(cli, "run_engineer") as engineer:
+            cli.engineer_from_prompt("abc123", "m", "/out")
+            cli.engineer_from_prompt("add pagination", "m", "/out")
+        assert engineer.call_args_list[0] == call("abc123", model="m", output_dir="/out")
+        assert engineer.call_args_list[1] == call("latest1", model="m", output_dir="/out", additional_instructions="add pagination")
+        history.get_history.return_value = []
+        with pytest.raises(RuntimeError, match="no runs yet"):
+            cli.engineer_from_prompt("add pagination")
 
     def test_without_a_terminal_a_prompt_is_required(self, monkeypatch):
         from click.testing import CliRunner

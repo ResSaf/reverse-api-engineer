@@ -1874,6 +1874,7 @@ def engineer(
             lambda: run_engineer(
                 run_id, prompt=main_prompt, additional_instructions=additional, model=model, output_dir=output_dir, is_fresh=fresh
             ),
+            lambda p, m: engineer_from_prompt(p, m or model, output_dir),
         )
         return
     if not machine_output:
@@ -1920,6 +1921,16 @@ def engineer(
 
         _write_json_stdout(real_stdout, payload, json_stream=json_stream)
     sys.exit(0 if payload["status"] == "ok" else 1)
+
+
+def engineer_from_prompt(text: str, model: str | None = None, output_dir: str | None = None) -> dict[str, Any] | None:
+    """A prompt in engineer mode: a known run id re-engineers that run; anything else is an instruction for the latest run."""
+    if session_manager.get_run(text):
+        return run_engineer(text, model=model, output_dir=output_dir)
+    latest = session_manager.get_history(limit=1)
+    if not latest:
+        raise RuntimeError("no runs yet · start one in agent or manual mode")
+    return run_engineer(latest[0]["run_id"], model=model, output_dir=output_dir, additional_instructions=text)
 
 
 def run_engineer(

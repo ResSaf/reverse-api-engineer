@@ -417,6 +417,15 @@ class TestCommands:
         session.run_command("/help")
         assert "› /help" in plain(session.transcript)
 
+    def test_quit_and_commands_are_aliases(self, app_session, monkeypatch):
+        session, _history = app_session
+        quits = []
+        monkeypatch.setattr(session, "quit", lambda: quits.append(True))
+        session.run_command("/quit")
+        assert quits == [True]
+        session.run_command("/commands")
+        assert "› /help" in plain(session.transcript) and "unknown command" not in plain(session.transcript)
+
     def test_an_exact_command_wins_over_longer_ones(self, app_session):
         session, _history = app_session
         session.buf.text = "/mode"

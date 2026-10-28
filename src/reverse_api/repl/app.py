@@ -75,6 +75,7 @@ COMMANDS = {
     "/help": "keys and commands",
     "/exit": "quit rae",
 }
+ALIASES = {"/quit": "/exit", "/commands": "/help"}
 HISTORY_RUNS = 20
 # Commands that open a picker are echoed once a choice shows something, not when the picker opens.
 PICKER_COMMANDS = {"/model", "/effort", "/mode", "/history", "/messages", "/resume"}
@@ -280,6 +281,7 @@ class Session:
     def run_command(self, text: str) -> None:
         cmd, _, arg = text.partition(" ")
         cmd, arg = cmd.lower(), arg.strip()
+        cmd = ALIASES.get(cmd, cmd)
         st, view = self.st, self.view
         if cmd not in PICKER_COMMANDS | {"/exit", "/clear"}:
             view.command(cmd, arg)

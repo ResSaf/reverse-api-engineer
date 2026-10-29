@@ -6,7 +6,8 @@ description: Drive the CLI from another agent or a wrapper script with --no-inte
 The CLI can be driven by another agent, a CI job, or a wrapper script. Use
 `agent --json` or `engineer --json` for a single machine-readable result,
 `list --json` and `show --json` for history inspection, and `run --json` to
-execute generated scripts without contaminating stdout.
+execute generated scripts without contaminating stdout. For coding agents, the
+[agent skill](/docs/cli/coding-agents) wraps this contract.
 
 When `--json` is set:
 
@@ -105,7 +106,7 @@ reverse-api-engineer run <run_id> --file api_client.py \
 | `url`            | `string \| null`    | Optional starting URL.                                                 |
 | `mode`           | `string \| null`    | Provider (`"auto"`, `"chrome-mcp"`, `"agent-browser"`).                |
 | `har_path`       | `string \| null`    | Absolute path to the captured HAR (`recording.har`).                   |
-| `script_path`    | `string \| null`    | Absolute path to the generated client when reverse engineering ran.    |
+| `script_path`    | `string \| null`    | Absolute path to the generated client. It exists whenever `status` is `"ok"`; a run that ends without writing it reports `engine_failure`. |
 | `usage`          | `object`            | Normalized token plus cost usage (`input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `total_cost_usd`) plus raw SDK usage under `raw`. |
 | `error`          | `string \| null`    | Human-readable error message when `status == "error"`.                 |
 | `error_kind`     | `string \| null`    | Machine-readable error category such as `misuse`, `network`, or `engine_failure`. |

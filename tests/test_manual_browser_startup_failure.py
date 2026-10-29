@@ -34,8 +34,3 @@ class TestStartupFailureCleanup:
 
         fake_pw.stop.assert_called_once()
         assert browser._playwright is None
-
-    def test_scheme_added_to_bare_host(self):
-        assert ManualBrowser._normalize_url("jobs.example.com/x") == "https://jobs.example.com/x"
-        assert ManualBrowser._normalize_url("http://a.com") == "http://a.com"
-        assert ManualBrowser._normalize_url("  https://b.com  ") == "https://b.com"

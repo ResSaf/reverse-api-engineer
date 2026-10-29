@@ -41,6 +41,7 @@ from .utils import (
     get_history_path,
     get_messages_path,
     get_timestamp,
+    normalize_url,
     resolve_run,
 )
 
@@ -1222,6 +1223,9 @@ def agent(
 
     Agent mode runs an integrated capture + reverse-engineering pipeline.
     """
+    if url:
+        url = normalize_url(url)
+
     if dry_run:
         # --dry-run is fundamentally about emitting machine-parseable validation
         # results, so it implies --json (and therefore --no-interactive).
@@ -1539,6 +1543,9 @@ def run_auto_capture(
     if not prompt:
         raise click.UsageError("a prompt is required")
 
+    if url:
+        url = normalize_url(url)
+
     if agent_provider == "chrome-mcp" and not headless:
         from .chrome_mcp import check_auto_connect
 
@@ -1636,6 +1643,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
         elif sdk == "copilot":
             from .auto_engineer import CopilotAutoEngineer
@@ -1651,6 +1659,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
         elif sdk == "cursor":
             from .cursor_engineer import CursorAutoEngineer
@@ -1667,6 +1676,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
                 cursor_model=model or config_manager.get("cursor_model", "composer-2.5"),
                 cursor_web_search=bool(config_manager.get("cursor_web_search", True)),
                 cursor_setting_sources=_cursor_src,
@@ -1685,6 +1695,7 @@ def run_auto_capture(
                 output_language=output_language,
                 interactive=interactive,
                 headless=headless,
+                start_url=url,
             )
 
         # CopilotAutoEngineer wraps the CopilotEngineer that owns the session.

@@ -28,6 +28,7 @@ class CopilotEngineer(BaseEngineer):
     agent_provider: str
     mcp_run_id: str
     headless: bool
+    start_url: str | None
 
     def __init__(
         self,

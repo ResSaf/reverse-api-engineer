@@ -219,6 +219,7 @@ class TestAutoTemplates:
             prompt="browse example.com",
             scripts_dir="/tmp/scripts",
             har_path="/tmp/recording.har",
+            start_url_block="",
         )
         assert "browse example.com" in text
         assert "browser_navigate" in text
@@ -229,6 +230,7 @@ class TestAutoTemplates:
             "auto/user_chrome_mcp",
             prompt="browse example.com",
             scripts_dir="/tmp/scripts",
+            start_url_block="",
         )
         assert "browse example.com" in text
         assert "navigate_page" in text

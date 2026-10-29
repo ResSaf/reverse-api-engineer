@@ -699,3 +699,55 @@ def test_direct_interrupt_after_claude_result_keeps_partial_run(tmp_path, output
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         assert payload["error"] == "interrupted"
         assert payload["script_path"] == "completed.py"
+
+
+@pytest.mark.parametrize(
+    "sdk,engine_path",
+    [
+        ("claude", "reverse_api.auto_engineer.ClaudeAutoEngineer"),
+        ("opencode", "reverse_api.auto_engineer.OpenCodeAutoEngineer"),
+        ("copilot", "reverse_api.auto_engineer.CopilotAutoEngineer"),
+        ("cursor", "reverse_api.cursor_engineer.CursorAutoEngineer"),
+    ],
+)
+def test_agent_url_reaches_engine(tmp_path, sdk, engine_path):
+    from unittest.mock import AsyncMock
+
+    from reverse_api.config import ConfigManager
+
+    config = ConfigManager(tmp_path / "config.json")
+    config.config.update({"sdk": sdk, "agent_provider": "auto", "real_time_sync": False})
+    engine = MagicMock()
+    engine.analyze_and_generate = AsyncMock(return_value=None)
+    with (
+        patch("reverse_api.cli.config_manager", config),
+        patch("reverse_api.cli.session_manager", SessionManager(tmp_path / "history.json")),
+        patch(engine_path, return_value=engine) as engine_cls,
+    ):
+        CliRunner().invoke(
+            main,
+            ["agent", "-p", "fetch job postings", "-u", "https://jobs.ashbyhq.com/openai", "--headless", "-o", str(tmp_path), "--json"],
+        )
+    assert engine_cls.call_args.kwargs["start_url"] == "https://jobs.ashbyhq.com/openai"
+
+
+def test_agent_bare_host_url_gets_https_scheme(tmp_path):
+    from unittest.mock import AsyncMock
+
+    from reverse_api.config import ConfigManager
+
+    config = ConfigManager(tmp_path / "config.json")
+    config.config.update({"sdk": "claude", "agent_provider": "auto", "real_time_sync": False})
+    engine = MagicMock()
+    engine.analyze_and_generate = AsyncMock(return_value=None)
+    with (
+        patch("reverse_api.cli.config_manager", config),
+        patch("reverse_api.cli.session_manager", SessionManager(tmp_path / "history.json")),
+        patch("reverse_api.auto_engineer.ClaudeAutoEngineer", return_value=engine) as engine_cls,
+    ):
+        result = CliRunner().invoke(
+            main,
+            ["agent", "-p", "fetch job postings", "-u", "jobs.ashbyhq.com/openai", "--headless", "-o", str(tmp_path), "--json"],
+        )
+    assert engine_cls.call_args.kwargs["start_url"] == "https://jobs.ashbyhq.com/openai"
+    assert json.loads(result.stdout.strip().splitlines()[-1])["url"] == "https://jobs.ashbyhq.com/openai"

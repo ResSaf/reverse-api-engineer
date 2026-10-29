@@ -1,7 +1,7 @@
 <mission>
 {prompt}
 </mission>
-
+{start_url_block}
 <output_directory>
 {scripts_dir}
 </output_directory>
@@ -59,7 +59,7 @@ Start HAR recording **before** navigation and confirm it succeeded (abort if thi
 export AGENT_BROWSER_SESSION="{agent_browser_session}"
 {agent_browser_shell} network har start
 # verify exit code 0; if non-zero, diagnose with `{agent_browser_shell} doctor` and stop
-{agent_browser_shell} open https://example.com
+{agent_browser_shell} open "<target-url>"  # the start URL, or the site the mission names
 {agent_browser_shell} snapshot -i --json
 # … iterate …
 ```

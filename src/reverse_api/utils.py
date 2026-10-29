@@ -64,6 +64,15 @@ _CONTEXT_OVERFLOW_MARKERS = (
 )
 
 
+def normalize_url(url: str) -> str:
+    """Prepend https:// when the user typed a bare host (e.g.
+    ``jobs.example.com/x``); Playwright's goto rejects scheme-less URLs."""
+    url = url.strip()
+    if url and "://" not in url:
+        return "https://" + url
+    return url
+
+
 def build_sdk_env() -> dict[str, str]:
     """Environment overrides for Claude Agent SDK subprocesses.
 

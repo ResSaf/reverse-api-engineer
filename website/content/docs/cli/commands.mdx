@@ -1,32 +1,57 @@
 ---
 title: Slash commands
-description: Commands available inside the interactive CLI.
+description: Commands and keys of the interactive session.
 ---
 
-While in the interactive prompt, the following slash commands are available:
+Running `reverse-api-engineer` opens a full-screen session: the conversation
+scrolls above an input bar fixed to the bottom. Type `/` to open the command
+menu; `Tab` completes and `Enter` runs the highlighted command.
 
-| Command                | What it does                                              |
-|------------------------|-----------------------------------------------------------|
-| `/settings`            | Configure model, agent provider, SDK, output directory.   |
-| `/history`             | View past runs with token usage and cost.                 |
-| `/messages <run_id>`   | View the full message log for a previous run.             |
-| `/help`                | List all commands. Alias: `/commands`.                    |
-| `/exit`                | Quit the CLI.                                             |
+| Command                | What it does                                                        |
+|------------------------|---------------------------------------------------------------------|
+| `/new`                 | End the open run and start a new capture.                           |
+| `/model`               | Choose the model. In collector mode, the collector's own model.     |
+| `/effort`              | How hard the agent thinks, for Claude models (`low` to `max`).      |
+| `/mode`                | Switch between agent, manual, engineer and collector.               |
+| `/settings`            | SDK, agent provider, output directory, language and sync settings.  |
+| `/history`             | Past runs with their cost; open one to resume, re-engineer or read its messages. |
+| `/messages [run_id]`   | What the agent did in a run, step by step.                          |
+| `/resume [run_id]`     | Continue a past run's conversation where it stopped, on any SDK.    |
+| `/output`              | Everything from the session, unfolded.                              |
+| `/open`                | Open the latest generated client.                                   |
+| `/clear`               | Clear the conversation and its spend.                               |
+| `/help`                | Keys and commands. Alias: `/commands`.                              |
+| `/exit`                | Quit. Alias: `/quit`.                                               |
 
-## Mode cycling
+`/resume` works for runs that saved their SDK session, which agent and engineer
+runs do from this release on. Older runs and collector runs cannot be resumed.
 
-Press **`Shift+Tab`** to cycle between modes:
+## Keys
 
-```text
-agent → manual → engineer → collector → agent ...
-```
+| Key                  | What it does                                               |
+|----------------------|------------------------------------------------------------|
+| `Enter`              | Send. While the agent works, the message is queued.        |
+| `Esc`                | Stop the run, or close a menu.                             |
+| `Shift+Tab`          | Cycle the mode: agent → manual → engineer → collector.     |
+| `Ctrl+E`             | Cycle the effort level.                                    |
+| `Ctrl+O`             | Show the full output of folded steps.                      |
+| `PageUp` / `PageDown`| Scroll the conversation. `End` jumps back to the latest.   |
+| `Ctrl+D`             | Quit.                                                      |
 
-The current mode is shown in the prompt. Each mode has its own behavior. See
-[Usage modes](/docs/modes/manual).
+Click a file or URL in the conversation to open it.
+
+The status row under the input shows the run's id, which `/resume`,
+`/messages` and `reverse-api-engineer show` take. Once the agent has verified
+the client, its step lists the run's folder, and with real-time sync on, the
+synced copy in `./scripts`, as full paths.
+
+When the agent asks a question, its options show under the input: pick one
+with the arrow keys, press `Space` to pick several when the question allows
+it, or type your own answer.
 
 ## Direct subcommands
 
-Outside the interactive CLI, you can use direct subcommands:
+Outside the session, you can use direct subcommands:
 
 | Command       | What it does                                               |
 |---------------|------------------------------------------------------------|
@@ -37,10 +62,16 @@ Outside the interactive CLI, you can use direct subcommands:
 | `show`        | Inspect one run; supports `--json`.                        |
 | `run`         | Execute a generated client with its language toolchain.    |
 
+In a terminal, `agent`, `engineer` and `collector` open the session in their
+mode and start the run, keeping options such as `--headless` and
+`--output-dir` for the prompts you type next. `agent` and `engineer` print
+plain output instead with `--json`, `--json-stream` or `--no-interactive`;
+`collector` does when it runs outside a terminal.
+
 Scripted flags are command-specific: `agent`, `engineer`, and `run` support
 `--json` and `--json-stream`; `list` and `show` support `--json`; and `run`
 also supports `--no-interactive` for script selection and dependency prompts. See
 [Scripted usage](/docs/cli/scripted-usage).
 
-Manual mode is available only inside the interactive REPL because it opens a
+Manual mode is available only inside the interactive session because it opens a
 visible browser for human-driven capture.

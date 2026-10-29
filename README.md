@@ -56,6 +56,16 @@ uv tool install "reverse-api-engineer[manual]"   # or: pip install "reverse-api-
 playwright install chromium
 ```
 
+### Use it from your coding agent
+
+Install the skill so Claude Code, Codex, Cursor, OpenCode and other agents know how to drive the CLI:
+
+```bash
+npx skills add kalil0321/reverse-api-engineer
+```
+
+Then ask your agent for what you need, for example "get me a typed client for the job search on this careers page". The skill lives in [`skills/reverse-api-engineer`](skills/reverse-api-engineer/SKILL.md).
+
 ## Quick start
 
 ```bash
@@ -72,12 +82,12 @@ Cycle modes with **Shift+Tab**:
 |------|--------------|
 | `manual` | You drive the browser; AI generates the client from captured traffic. |
 | `agent` | An AI agent drives capture autonomously (Playwright or Chrome MCP, or Vercel agent-browser CLI). |
-| `engineer` | Re-run generation on a previous capture (`engineer <run_id>`). |
+| `engineer` | Re-run generation on a previous capture (`engineer <run_id>`). Needs a HAR, so it works on `auto`, `agent-browser` and manual runs, not chrome-mcp runs. |
 | `collector` | Agent collects structured data (JSON/CSV) using web search + fetch. |
 
 Agent mode providers:
-- **auto** (default): Playwright MCP, single workflow for browsing + reverse engineering.
-- **chrome-mcp**: drives your real Chrome so you keep existing sessions/cookies. Requires Chrome 146+ and Node.js 20.19+.
+- **chrome-mcp** (default for new configs; an existing `config.json` keeps its provider): drives your real Chrome so you keep existing sessions/cookies. Needs Node.js 20.19+; headed runs also need Chrome 146+ open with auto-connect enabled at `chrome://inspect/#remote-debugging`, and someone at the machine to accept Chrome's connection prompt when the run starts. For headed runs, rae checks before launching that Chrome's remote debugging port is reachable (not the Chrome or Node version) and stops with setup steps if it isn't; `agent --dry-run` shows the same check. Headless runs skip it. `--headless` starts a separate headless Chrome without your sessions. No HAR file is saved, so `engineer <run_id>` cannot regenerate these runs; run `agent` again instead.
+- **auto**: Playwright MCP, records a HAR and needs no Chrome setup.
 - **agent-browser**: [Vercel agent-browser](https://github.com/vercel-labs/agent-browser) **CLI** (not a Reverse API Engineer browser MCP server). At session start RAE uses whatever `agent-browser` is already on `PATH`, otherwise runs **`npm install -g <pin>`** (same pin as config / `RAE_AGENT_BROWSER_PACKAGE`), prints a yellow notice, validates with **`--help`**, and only then falls back to **`npx -y <pin>`** if npm cannot install. Prompts embed the resolved shell prefix alongside **`skills get core --full`**, **`skills list`**, HAR phases, cloud notes from `agent_browser_notes`. Tune with `agent_browser_npx_package` (optional), env `RAE_AGENT_BROWSER_*`. First Chromium fetch: **`agent-browser install`** (add `--with-deps` on trimmed Linux).
 
 
@@ -94,10 +104,11 @@ Settings live in `~/.reverse-api/config.json` and can be edited via `/settings` 
 
 ```json
 {
-  "agent_provider": "auto",
+  "agent_provider": "chrome-mcp",
   "agent_browser_npx_package": "agent-browser@0",
   "agent_browser_notes": "",
   "claude_code_model": "claude-sonnet-4-6",
+  "claude_setting_sources": [],
   "collector_model": "claude-sonnet-4-6",
   "ollama_auto_start": true,
   "ollama_base_url": "http://127.0.0.1:11434",
@@ -115,20 +126,23 @@ Settings live in `~/.reverse-api/config.json` and can be edited via `/settings` 
 }
 ```
 
-- **Models**: Sonnet 4.6 (default), Opus 4.6 (most capable), Haiku 4.5 (fastest). For OpenCode see [models.dev](https://models.dev).
+- **Models**: Sonnet 5.5, Opus 5.5 (most capable), Opus 4.6 and Haiku 5.5 (fastest). Sonnet 4.6 stays the default until you choose another; it and Haiku 4.5 are still accepted in config and by `--model`. For OpenCode see [models.dev](https://models.dev).
 - **SDK**: `claude` (default), `opencode`, `cursor`, or `copilot` (GitHub Copilot).
+- **Claude settings isolation**: Claude sessions don't load your Claude Code settings files, `CLAUDE.md`, hooks, plugins, permission rules or MCP servers, so your personal setup doesn't steer the agent. Organization-managed policy still applies, and Claude Code still reads its own state such as `~/.claude.json` and auto memory. If `~/.claude/settings.json` provides your authentication (`apiKeyHelper`, or Bedrock, Vertex or proxy variables under `env`), set `claude_setting_sources` to the layers to load, e.g. `["user"]` or `["user", "project", "local"]`. Each layer you list is loaded in full, including its hooks, plugins, permission rules and MCP servers.
 - **OpenCode setup**: with `sdk: "opencode"`, RAE reuses an existing server or downloads/starts `opencode-ai@latest` through `npx`; a global OpenCode installation is not required. Fresh configurations default to the free `opencode/big-pickle` model. `/settings` shows a loading spinner, then offers a searchable **OpenCode Provider / Model** picker populated from the server's connected, tool-capable catalog and marks free OpenCode options. Before creating a session, RAE validates the saved pair again and suggests currently available free models when configuration is invalid. Compatible older servers are reused with a version warning. Node.js 20+ is required for automatic startup. Password-protected servers use `OPENCODE_SERVER_PASSWORD` and optional `OPENCODE_SERVER_USERNAME`. Override startup with `OPENCODE_BASE_URL`, `RAE_OPENCODE_PACKAGE`, or `RAE_OPENCODE_AUTO_START=0`.
 - **Ollama through OpenCode**: choose provider `ollama` in `/settings`; RAE starts an installed Ollama daemon if needed, lists only installed models with tool calling and 64k+ context, and supplies OpenCode's provider config inline. Models are never downloaded silently. Override with `RAE_OLLAMA_BASE_URL` or `RAE_OLLAMA_AUTO_START=0`.
 - **Output language**: `python`, `javascript`, `typescript`, `go`, `java`, `csharp`, `php`, `ruby`, `c`, or `powershell`. C needs a POSIX toolchain (`cc`, libcurl headers) — macOS/Linux, or WSL/MSYS2 on Windows. PowerShell needs `pwsh` 7+ (PowerShell Core, not Windows PowerShell 5.1). Its runner executes the generated `Example.ps1` beside `api_client.psm1`; argument overrides are not supported. Edit the example or import the module to call its exported functions with your own arguments.
 
 ## CLI
 
-Slash commands inside the CLI:
-- `/settings`: configure model, SDK, agent provider, and sync settings.
-- `/history`: list past runs with timestamps, costs, and status.
-- `/messages <run_id>`: view detailed message logs for a run.
-- `/help` (alias: `/commands`): show the command list.
-- `/exit` (alias: `/quit`): leave the CLI.
+`reverse-api-engineer` opens a full-screen session; `agent`, `engineer` and `collector` open it too when run in a terminal (`agent` and `engineer` stay plain with `--json` or `--no-interactive`). Type `/` for the commands:
+- `/model`, `/effort`, `/mode`: switch the model, how hard it thinks, and the mode (also Shift+Tab, ctrl+e).
+- `/settings`: SDK, agent provider, output and sync settings.
+- `/history`: past runs, with their details, messages, and re-engineer or resume.
+- `/messages [run_id]`: what the agent did in a run.
+- `/resume [run_id]`: continue a past run's conversation where it stopped, on any SDK. Works for runs that saved their SDK session: agent and engineer runs from this version on. Collector runs cannot be resumed.
+- `/output` (ctrl+o): everything from the session, unfolded. `/open`: the latest client.
+- `/new`, `/clear`, `/help` (or `/commands`), `/exit` (or `/quit`).
 
 Scriptable subcommands (pipe to `jq`):
 
@@ -155,7 +169,7 @@ Pass `--no-interactive` (and/or `--json`) to skip prompts. With `--json`, stdout
 | `url`            | `string` \| `null`  |                                                                        |
 | `mode`           | `string` \| `null`  | `"auto"`, `"chrome-mcp"`, or `"agent-browser"`.                                        |
 | `har_path`       | `string` \| `null`  | Captured HAR.                                                          |
-| `script_path`    | `string` \| `null`  | Generated client.                                                      |
+| `script_path`    | `string` \| `null`  | Generated client; exists whenever `status` is `"ok"`.                 |
 | `usage`          | `object`            | `{input_tokens, output_tokens, total_cost}`.                           |
 | `error`          | `string` \| `null`  | When `status == "error"`.                                              |
 

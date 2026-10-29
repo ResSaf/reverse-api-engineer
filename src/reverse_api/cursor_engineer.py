@@ -14,6 +14,7 @@ from typing import Any
 
 from .agent_browser import ensure_agent_browser_runtime, print_agent_browser_setup_notices
 from .base_engineer import BaseEngineer
+from .chrome_mcp import CHROME_DEVTOOLS_MCP_PACKAGE
 from .runtime_commands import resolve_windows_command
 from .tui import ClaudeUI
 
@@ -134,7 +135,10 @@ class CursorEngineer(BaseEngineer):
         self.cursor_web_search = cursor_web_search
         self.cursor_setting_sources = cursor_setting_sources
         vb = self.ui.verbose
-        self.ui = CursorStreamUI(self, verbose=vb)
+        from .repl.bridge import CursorLedgerUI, active
+
+        bridge = active()
+        self.ui = CursorLedgerUI(bridge, self, verbose=vb) if bridge else CursorStreamUI(self, verbose=vb)  # type: ignore[assignment]
         self._cursor_thinking_acc = ""
         self._cursor_assistant_acc = ""
         # Cursor streams several `tool_call`/running deltas per call as the args
@@ -348,7 +352,7 @@ class CursorEngineer(BaseEngineer):
                 if t == "stream" and isinstance(obj.get("event"), dict):
                     await self._dispatch_stream_event(obj["event"])
                 elif t == "agent":
-                    pass
+                    self._record_session(obj.get("agentId"))
                 elif t == "done":
                     run_result = obj.get("runResult") or {}
                     if run_result.get("status") == "error":
@@ -426,12 +430,13 @@ class CursorEngineer(BaseEngineer):
             return None
 
         system_prompt, user_message = self._build_prompts()
-        self.message_store.save_prompt(user_message)
-        combined = f"{system_prompt}\n\n{user_message}"
-
-        agent_id: str | None = None
+        opening = await self._opening_message(user_message)
+        if not opening:
+            return {}
+        # A resumed agent already holds the brief; it only gets the user's message.
+        agent_id: str | None = self.resume_session
         last_result: dict[str, Any] | None = None
-        turn_prompt: str = combined
+        turn_prompt: str = opening if self.resume_session else f"{system_prompt}\n\n{user_message}"
 
         try:
             while True:
@@ -452,6 +457,7 @@ class CursorEngineer(BaseEngineer):
                 script_path = str(self.scripts_dir / self._get_client_filename())
                 local_path = str(self.local_scripts_dir / self._get_client_filename()) if self.local_scripts_dir else None
                 self.ui.success(script_path, local_path)
+                self._report_usage()
 
                 self.usage_metadata.setdefault("estimated_cost_usd", 0.0)
                 self.ui.console.print("  [dim]Usage (Cursor SDK): see dashboard — token counts are best-effort[/dim]")
@@ -513,7 +519,7 @@ class CursorAutoEngineer(CursorEngineer):
         if self.agent_provider == "agent-browser":
             return {}
         if self.agent_provider == "chrome-mcp":
-            args = ["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
+            args = ["-y", CHROME_DEVTOOLS_MCP_PACKAGE, "--no-usage-statistics"]
             if self.headless:
                 args.append("--headless")
             else:
@@ -571,13 +577,14 @@ class CursorAutoEngineer(CursorEngineer):
                 return None
 
         system_prompt, user_message = ClaudeAutoEngineer._build_auto_prompts(self)
-        self.message_store.save_prompt(user_message)
-        combined = f"{system_prompt}\n\n{user_message}"
+        opening = await self._opening_message(user_message)
+        if not opening:
+            return {}
 
         mcp = self._cursor_mcp_servers()
-        agent_id: str | None = None
+        agent_id: str | None = self.resume_session
         last_result: dict[str, Any] | None = None
-        turn_prompt: str = combined
+        turn_prompt: str = opening if self.resume_session else f"{system_prompt}\n\n{user_message}"
 
         try:
             while True:
@@ -598,6 +605,7 @@ class CursorAutoEngineer(CursorEngineer):
                 script_path = str(self.scripts_dir / self._get_client_filename())
                 local_path = str(self.local_scripts_dir / self._get_client_filename()) if self.local_scripts_dir else None
                 self.ui.success(script_path, local_path)
+                self._report_usage()
                 self.usage_metadata.setdefault("estimated_cost_usd", 0.0)
 
                 last_result = {"script_path": script_path, "usage": self.usage_metadata}

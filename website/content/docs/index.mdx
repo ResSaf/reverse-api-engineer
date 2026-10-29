@@ -72,10 +72,12 @@ network traffic directly through its MCP tools.
 Plug an agent into the loop and it browses on your behalf. Three providers
 ship today:
 
-- **Playwright MCP** *(default)*: self-contained browser automation; add
-  `--headless` for CI or machines without a display.
-- **Chrome DevTools MCP**: drives your **real Chrome** with existing sessions,
-  cookies, and auth.
+- **Chrome DevTools MCP** *(default)*: drives your **real Chrome** with existing
+  sessions, cookies, and auth. Headed runs need Chrome 146+ with remote
+  debugging enabled at `chrome://inspect/#remote-debugging`; `--headless`
+  starts a separate headless Chrome.
+- **Playwright MCP** (`auto`): self-contained browser automation that records a
+  HAR; add `--headless` for CI or machines without a display.
 - **agent-browser**: delegates browsing to the Vercel `agent-browser` CLI
   after resolving a PATH/global/npm/npx shell invocation.
 
@@ -98,11 +100,13 @@ Use **Anthropic's API directly** (default) or route through **OpenCode**
 running locally. Copilot and Cursor SDK backends are also available when their
 optional dependencies and credentials are configured.
 
-### Interactive CLI with mode cycling
+### Full-screen interactive CLI
 
-Press **`Shift+Tab`** to cycle between modes. Slash commands (`/settings`,
-`/history`, `/messages`) keep configuration and run inspection one keystroke
-away.
+The agent's steps, messages and reasoning stream into one conversation, with
+the input bar always at the bottom. Press **`Shift+Tab`** to cycle between
+modes; slash commands (`/model`, `/effort`, `/history`, `/resume`,
+`/settings`) keep configuration, past runs and their conversations one
+keystroke away. See [Slash commands](/docs/cli/commands).
 
 ### Session history & cost tracking
 

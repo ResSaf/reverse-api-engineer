@@ -5,7 +5,7 @@ import io
 import threading
 from concurrent.futures import Future
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from rich.console import Console
@@ -119,6 +119,43 @@ class TestLedgerUI:
         ui.success(str(tmp_path / "never_written.py"))
         ui.usage({"input_tokens": 10, "output_tokens": 5, "estimated_cost_usd": 0.01})
         assert "ready" not in plain(t), "a client path that does not exist gets no card"
+
+    def test_verified_shows_where_the_files_are(self, session):
+        _st, t, _view, b = session
+        ui = LedgerUI(b)
+        ui.header("abc123", "prompt", model="claude-sonnet-5-5")
+        folder, copy = Path("/runs/abc123"), Path("/work/scripts/jobs")
+        ui.workspace(folder, copy)
+        for _ in range(2):
+            ui.tool_start("mcp__verification__report_client_verified", {"summary": "ok"})
+            ui.tool_result("mcp__verification__report_client_verified", output="Recorded")
+        text = plain(t)
+        assert text.count(f"└ in {folder.resolve()}") == 1 and text.count(f"└ copy {copy.resolve()}") == 1
+
+    def test_no_folders_without_a_confirmed_verification(self, session, tmp_path):
+        _st, t, _view, b = session
+        ui = LedgerUI(b)
+        ui.header("abc123", "prompt", model="claude-sonnet-5-5")
+        ui.workspace(tmp_path / "runs" / "abc123", None)
+        ui.tool_result("mcp__verification__report_client_verified", is_error=True, output="failed")
+        assert "└ in" not in plain(t)
+        ui.header("def456", "prompt", model="claude-sonnet-5-5")
+        ui.tool_result("mcp__verification__report_client_verified", output="Recorded")
+        assert "└ in" not in plain(t), "a new run forgets the last run's folder"
+
+    def test_the_status_row_shows_the_run_id(self, session):
+        _st, _t, view, b = session
+        assert "run " not in "".join(text for _, text in view.status())
+        LedgerUI(b).header("abc123", "prompt", model="claude-sonnet-5-5")
+        assert "run abc123" in "".join(text for _, text in view.status())
+
+    def test_a_run_id_that_does_not_fit_is_left_out(self, session, monkeypatch):
+        from reverse_api.repl import view as view_module
+
+        _st, _t, view, b = session
+        LedgerUI(b).header("abc123", "prompt", model="claude-sonnet-5-5")
+        monkeypatch.setattr(view_module, "width", lambda: 40)
+        assert "run abc123" not in "".join(text for _, text in view.status())
 
     def test_folded_output_offers_ctrl_o(self, session):
         st, _t, view, b = session
@@ -417,6 +454,22 @@ class TestCommands:
         session.run_command("/help")
         assert "› /help" in plain(session.transcript)
 
+    def test_quit_and_commands_are_aliases(self, app_session, monkeypatch):
+        session, _history = app_session
+        quits = []
+        monkeypatch.setattr(session, "quit", lambda: quits.append(True))
+        session.run_command("/quit")
+        assert quits == [True]
+        session.run_command("/commands")
+        assert "› /help" in plain(session.transcript) and "unknown command" not in plain(session.transcript)
+
+    def test_the_menu_finds_commands_by_alias(self, app_session):
+        session, _history = app_session
+        session.buf.text = "/qu"
+        assert [c for c, _ in session.palette_items()] == ["/exit"]
+        session.buf.text = "/c"
+        assert {c for c, _ in session.palette_items()} == {"/clear", "/help"}
+
     def test_an_exact_command_wins_over_longer_ones(self, app_session):
         session, _history = app_session
         session.buf.text = "/mode"
@@ -433,6 +486,12 @@ class TestCommands:
         assert "/history" not in plain(session.transcript)
         pick(session.st, "abc123")
         assert "› /history abc123" in plain(session.transcript)
+
+    def test_clear_forgets_the_run_id(self, app_session):
+        session, _history = app_session
+        session.st.run_id = "abc123"
+        session.run_command("/clear")
+        assert session.st.run_id is None
 
     def test_clear_starts_over_with_no_usage(self, app_session):
         session, _history = app_session
@@ -869,6 +928,34 @@ class TestSubcommands:
             "headless": True,
         }
         assert capture.call_args_list[1].kwargs == {"prompt": "later task", "model": "claude-opus-5-5", "output_dir": None, "headless": True}
+
+    def test_engineer_keeps_its_output_dir_for_later_prompts(self, monkeypatch):
+        from click.testing import CliRunner
+
+        from reverse_api import cli
+
+        monkeypatch.setattr(cli, "_in_terminal", lambda: True)
+        with patch.object(cli, "open_session") as session, patch.object(cli, "engineer_from_prompt") as later:
+            CliRunner().invoke(cli.main, ["engineer", "abc123", "-o", "/out"])
+            runner = session.call_args.args[4]
+            runner("add pagination", None)
+        later.assert_called_once_with("add pagination", None, "/out")
+
+    def test_an_engineer_prompt_is_a_run_id_or_an_instruction_for_the_latest_capture(self, monkeypatch):
+        from reverse_api import cli
+
+        history = MagicMock()
+        history.get_run.side_effect = lambda text: {"run_id": text} if text == "abc123" else None
+        history.get_history.return_value = [{"run_id": "collect1", "mode": "collector"}, {"run_id": "capture1", "mode": "agent"}]
+        monkeypatch.setattr(cli, "session_manager", history)
+        with patch.object(cli, "run_engineer") as engineer:
+            cli.engineer_from_prompt("abc123", "m", "/out")
+            cli.engineer_from_prompt("add pagination", "m", "/out")
+        assert engineer.call_args_list[0] == call("abc123", model="m", output_dir="/out")
+        assert engineer.call_args_list[1] == call("capture1", model="m", output_dir="/out", additional_instructions="add pagination")
+        history.get_history.return_value = history.get_history.return_value[:1]
+        with pytest.raises(RuntimeError, match="no captured runs yet"):
+            cli.engineer_from_prompt("add pagination")
 
     def test_without_a_terminal_a_prompt_is_required(self, monkeypatch):
         from click.testing import CliRunner

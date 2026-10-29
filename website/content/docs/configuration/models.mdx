@@ -7,31 +7,42 @@ description: Choose a model for Claude, OpenCode, Copilot, or Cursor.
 
 | Model         | When to pick it                                                          |
 |---------------|--------------------------------------------------------------------------|
-| **Sonnet 4.6** *(default)* | Balanced cost and quality. Right answer for most captures.    |
-| **Opus 4.6**  | Complex APIs (many endpoints, nested auth, polymorphic responses).       |
-| **Haiku 4.5** | Cheapest and fastest. Good for simple endpoints or quick iterations.     |
+| **Sonnet 5.5** | Balanced cost and quality, faster and cheaper than Sonnet 4.6.          |
+| **Opus 5.5**  | Complex APIs (many endpoints, nested auth, polymorphic responses).       |
+| **Opus 4.6**  | The previous Opus, for comparison or when a run needs it.                |
+| **Haiku 5.5** | Cheapest and fastest. Good for simple endpoints or quick iterations.     |
+
+Sonnet 4.6 stays the default until you choose another model. It and Haiku 4.5
+are no longer offered in the pickers, but `--model` and `config.json` still
+accept them.
 
 ## Change the model
 
-In the CLI:
-
-```text
-/settings then "Claude Code Model"
-```
+In the session, type `/model`. In collector mode, `/model` sets the
+collector's own model (`collector_model`).
 
 Or pass a model to a direct command:
 
 ```bash
-reverse-api-engineer agent --prompt "capture the jobs api" --model claude-sonnet-4-6
+reverse-api-engineer agent --prompt "capture the jobs api" --model claude-sonnet-5-5
 ```
 
 Or edit `~/.reverse-api/config.json` directly:
 
 ```json
 {
-  "claude_code_model": "claude-opus-4-6"
+  "claude_code_model": "claude-opus-5-5"
 }
 ```
+
+## Effort
+
+Claude models take an effort level, from `low` to `max`: how hard the agent
+thinks before acting. Higher effort is slower and costs more, and helps on hard
+captures. Set it with `/effort` or `Ctrl+E` in the session, or with
+`claude_effort` in the config. Leaving it unset keeps each model's default:
+`medium` for Opus 5.5 and Haiku 5.5, `high` for the others. Haiku 4.5 has no
+effort setting.
 
 ## Config file reference
 
@@ -39,10 +50,12 @@ The full default config:
 
 ```json
 {
-  "agent_provider": "auto",
+  "agent_provider": "chrome-mcp",
   "agent_browser_notes": "",
   "agent_browser_npx_package": "agent-browser@0",
   "claude_code_model": "claude-sonnet-4-6",
+  "claude_setting_sources": [],
+  "claude_effort": null,
   "collector_model": "claude-sonnet-4-6",
   "cursor_model": "composer-2.5",
   "cursor_web_search": true,
@@ -50,6 +63,11 @@ The full default config:
   "copilot_model": "gpt-5",
   "opencode_model": "big-pickle",
   "opencode_provider": "opencode",
+  "opencode_auto_start": true,
+  "opencode_base_url": "http://127.0.0.1:4096",
+  "opencode_npx_package": "opencode-ai@latest",
+  "ollama_auto_start": true,
+  "ollama_base_url": "http://127.0.0.1:11434",
   "output_dir": null,
   "output_language": "python",
   "real_time_sync": true,

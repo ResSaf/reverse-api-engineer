@@ -135,14 +135,14 @@ Settings live in `~/.reverse-api/config.json` and can be edited via `/settings` 
 
 ## CLI
 
-`reverse-api-engineer` opens a full-screen session; `agent`, `engineer` and `collector` open it too when run in a terminal (without `--json` or `--no-interactive`). Type `/` for the commands:
+`reverse-api-engineer` opens a full-screen session; `agent`, `engineer` and `collector` open it too when run in a terminal (`agent` and `engineer` stay plain with `--json` or `--no-interactive`). Type `/` for the commands:
 - `/model`, `/effort`, `/mode`: switch the model, how hard it thinks, and the mode (also Shift+Tab, ctrl+e).
 - `/settings`: SDK, agent provider, output and sync settings.
 - `/history`: past runs, with their details, messages, and re-engineer or resume.
 - `/messages [run_id]`: what the agent did in a run.
 - `/resume [run_id]`: continue a past run's conversation where it stopped, on any SDK. Works for runs that saved their SDK session: agent and engineer runs from this version on. Collector runs cannot be resumed.
 - `/output` (ctrl+o): everything from the session, unfolded. `/open`: the latest client.
-- `/new`, `/clear`, `/help`, `/exit`.
+- `/new`, `/clear`, `/help` (or `/commands`), `/exit` (or `/quit`).
 
 Scriptable subcommands (pipe to `jq`):
 

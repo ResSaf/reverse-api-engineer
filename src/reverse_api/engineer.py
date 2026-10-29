@@ -127,6 +127,7 @@ class ClaudeEngineer(BaseEngineer):
                     ]
                 }
             already_reported = True
+            self._report_workspace()
             # Deliberately no manual message_store/UI logging here — the
             # generic ToolUseBlock/ToolResultBlock handling in
             # _process_streaming_response already logs every tool call,

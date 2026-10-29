@@ -482,6 +482,12 @@ class LedgerView:
         # The full copy is only styled if ctrl+o asks for it: tool output can run to thousands of lines.
         self.out(block(lines[:OUTPUT_PREVIEW], more, cut=True), Deferred(lambda: block(lines, 0, cut=False)))
 
+    def workspace(self, folder: Path, copy: Path | None) -> None:
+        """Where a verified client's files are, absolute so a click opens them."""
+        rows = [("in", folder), ("copy", copy)] if copy else [("in", folder)]
+        for label, path in rows:
+            self.out(f"{' ' * INDENT}[{HAIRLINE}]└[/] [{DIM}]{label}[/] [{INK_SOFT}]{link(str(path), path)}[/]")
+
     def code(self, source: str, language: str) -> None:
         """Written code, previewed from its first definition; ctrl+o shows all of it."""
         total = source.count("\n") + 1
@@ -684,6 +690,9 @@ class LedgerView:
         else:
             hint = [(f"fg:{DIM}", "/ commands" + (" · ⌃o expand " if st.folded else " "))]
         used = sum(len(t) for _, t in left) + sum(len(t) for _, t in hint)
+        run = f"· run {st.run_id} " if st.run_id else ""
+        if run and used + 1 + len(run) <= width():  # left out rather than cut off
+            hint, used = hint + [(f"fg:{DIM}", run)], used + len(run)
         return FormattedText(left + [("", " " * max(1, width() - used))] + hint)
 
     def menu(self, rows: list[tuple[str, str, bool, bool]], title: str | None = None, limit: int = MENU_ROWS) -> FormattedText:
